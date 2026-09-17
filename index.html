@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediAssist AI - Comprehensive Healthcare Assistant (HC-02)</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Chart.js for Vitals Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        tealmed: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            700: '#0f766e',
+                            800: '#115e59',
+                            900: '#134e4a',
+                        },
+                        navy: {
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom scrollbar styling */
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 9999px;
+        }
+        
+        /* Pulse effect for recording */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .recording-active {
+            animation: pulse-ring 1.5s infinite;
+        }
+
+        /* Print styling for Doctor Visit Brief */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printableSummary, #printableSummary * {
+                visibility: visible;
+            }
+            #printableSummary {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 20px;
+                background: white;
+                color: black;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        .markdown-styled h3 { font-weight: 700; font-size: 1.05rem; margin-top: 0.75rem; color: #0f766e; }
+        .markdown-styled p { margin-bottom: 0.5rem; line-height: 1.5; }
+        .markdown-styled ul { list-style-type: disc; padding-left: 1.25rem; margin-bottom: 0.5rem; }
+        .markdown-styled li { margin-bottom: 0.25rem; }
+        .markdown-styled strong { color: #0f172a; font-weight: 600; }
+    </style>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Top Header -->
+    <header class="bg-navy-900 text-white shadow-lg sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-tealmed-500 text-white flex items-center justify-center font-bold text-xl shadow-md">
+                    <i class="fa-solid fa-heart-pulse"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight leading-tight flex items-center gap-2">
+                        MediAssist AI <span class="text-xs bg-tealmed-700/80 text-tealmed-100 font-medium px-2 py-0.5 rounded-full">HC-02</span>
+                    </h1>
+                    <p class="text-xs text-slate-300">Smart Preliminary Diagnosis & Healthcare Intelligence System</p>
+                </div>
+            </div>
+
+            <!-- Emergency Direct Call & Status -->
+            <div class="flex items-center gap-2 sm:gap-4 flex-wrap">
+                <a href="tel:108" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-2 shadow transition-all transform hover:scale-105">
+                    <i class="fa-solid fa-phone-volume text-sm animate-bounce"></i> Emergency 108 / 911
+                </a>
+                <button onclick="clearAllData()" class="text-slate-300 hover:text-white text-xs underline px-2 py-1" title="Reset stored data">
+                    <i class="fa-solid fa-rotate-right"></i> Reset App Data
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Global Medical Disclaimer Banner -->
+    <div class="bg-amber-50 border-b border-amber-200 px-4 py-2.5 text-xs text-amber-900 flex items-center justify-between z-20">
+        <div class="max-w-7xl mx-auto w-full flex items-center gap-2">
+            <i class="fa-solid fa-triangle-exclamation text-amber-600 text-sm flex-shrink-0"></i>
+            <span>
+                <strong>MEDICAL DISCLAIMER:</strong> This AI application provides preliminary information only and is <strong>NOT a substitute for professional medical advice, diagnosis, or treatment</strong>. Always consult a qualified physician for health concerns.
+            </span>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="bg-white border-b border-slate-200 shadow-sm sticky top-[62px] sm:top-[58px] z-20">
+        <div class="max-w-7xl mx-auto px-2 sm:px-6 flex overflow-x-auto custom-scroll text-sm font-medium">
+            <button onclick="switchTab('triage')" id="tab-triage" class="nav-tab py-3 px-4 border-b-2 border-tealmed-600 text-tealmed-700 flex items-center gap-2 flex-shrink-0 font-semibold">
+                <i class="fa-solid fa-stethoscope"></i> Symptom Triage & Assistant
+            </button>
+            <button onclick="switchTab('report')" id="tab-report" class="nav-tab py-3 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2 flex-shrink-0">
+                <i class="fa-solid fa-file-medical text-indigo-500"></i> Report Analyzer
+            </button>
+            <button onclick="switchTab('vitals')" id="tab-vitals" class="nav-tab py-3 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2 flex-shrink-0">
+                <i class="fa-solid fa-chart-line text-emerald-500"></i> Vitals Tracker
+            </button>
+            <button onclick="switchTab('drugs')" id="tab-drugs" class="nav-tab py-3 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2 flex-shrink-0">
+                <i class="fa-solid fa-pills text-purple-500"></i> Drug Safety
+            </button>
+            <button onclick="switchTab('summary')" id="tab-summary" class="nav-tab py-3 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2 flex-shrink-0">
+                <i class="fa-solid fa-print text-blue-500"></i> Doctor Visit Brief
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 overflow-x-hidden">
+
+        <!-- TAB 1: AI SYMPTOM TRIAGE & ASSISTANT -->
+        <section id="view-triage" class="tab-view block space-y-6">
+            
+            <!-- High Risk Emergency Banner (Hidden by default, shown if AI detects high urgency) -->
+            <div id="emergencyAlertBanner" class="hidden bg-red-100 border-l-4 border-red-600 p-4 rounded-r-lg shadow-sm">
+                <div class="flex items-start gap-3">
+                    <i class="fa-solid fa-circle-exclamation text-red-600 text-2xl flex-shrink-0 mt-0.5"></i>
+                    <div>
+                        <h4 class="text-red-900 font-bold text-base">HIGH RISK / EMERGENCY LEVEL DETECTED</h4>
+                        <p class="text-xs text-red-800 mt-1">
+                            Your described symptoms strongly suggest urgent medical evaluation. Do not delay care. Seek immediate medical attention or call <strong>108 / 911</strong> right away.
+                        </p>
+                        <a href="tel:108" class="inline-block mt-2 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded shadow hover:bg-red-700">
+                            <i class="fa-solid fa-phone"></i> Call Emergency Services Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                <!-- Left Column: Interactive Guided Symptom Form -->
+                <div class="lg:col-span-5 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+                            <h2 class="text-base font-bold text-navy-900 flex items-center gap-2">
+                                <i class="fa-solid fa-clipboard-list text-tealmed-600"></i> Guided Symptom Checklist
+                            </h2>
+                            <span class="text-[11px] bg-slate-100 text-slate-600 font-medium px-2 py-0.5 rounded">Structured Input</span>
+                        </div>
+
+                        <form id="symptomForm" class="space-y-4 text-xs">
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Main Symptom / Chief Complaint *</label>
+                                <div class="relative">
+                                    <input type="text" id="formSymptom" placeholder="e.g. Chest tightness, Sharp headache, Fever" required class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 pr-10 focus:ring-2 focus:ring-tealmed-500 focus:border-tealmed-500 outline-none text-slate-800">
+                                    <button type="button" id="voiceDictationBtn" onclick="toggleSpeechRecognition()" class="absolute right-2 top-2 text-slate-400 hover:text-red-500 p-1 text-sm transition-colors" title="Voice Input (Speech-to-Text)">
+                                        <i class="fa-solid fa-microphone"></i>
+                                    </button>
+                                </div>
+                                <span id="dictationStatus" class="text-[10px] text-slate-400 hidden mt-1">Listening... Speak clearly.</span>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block font-semibold text-slate-700 mb-1">Severity Scale (1 to 10)</label>
+                                    <div class="flex items-center gap-2">
+                                        <input type="range" id="formSeverity" min="1" max="10" value="5" oninput="document.getElementById('sevVal').innerText = this.value" class="w-full accent-tealmed-600">
+                                        <span id="sevVal" class="font-bold text-tealmed-700 text-sm bg-tealmed-50 px-2 py-0.5 rounded border border-tealmed-200">5</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block font-semibold text-slate-700 mb-1">Duration</label>
+                                    <input type="text" id="formDuration" placeholder="e.g. 2 hours, 3 days" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-tealmed-500 outline-none">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block font-semibold text-slate-700 mb-1">Onset Type</label>
+                                    <select id="formOnset" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-tealmed-500 outline-none">
+                                        <option value="Sudden">Sudden / Acute</option>
+                                        <option value="Gradual">Gradual / Progressive</option>
+                                        <option value="Intermittent">Intermittent / Comes and goes</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block font-semibold text-slate-700 mb-1">Anatomical Location</label>
+                                    <input type="text" id="formLocation" placeholder="e.g. Chest, Lower back, Throat" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-tealmed-500 outline-none">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Additional Context / Trigger</label>
+                                <textarea id="formAdditional" rows="2" placeholder="e.g. Worse after eating, started after exercise..." class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-tealmed-500 outline-none"></textarea>
+                            </div>
+
+                            <button type="submit" id="analyzeFormBtn" class="w-full bg-tealmed-600 hover:bg-tealmed-700 text-white font-semibold py-2.5 rounded-lg shadow transition-all flex items-center justify-center gap-2 text-sm">
+                                <i class="fa-solid fa-robot"></i> Run AI Triage Analysis
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Quick Triage Output Widget -->
+                    <div id="triageOutputWidget" class="mt-4 pt-4 border-t border-slate-100 text-xs">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-bold text-slate-700">Triage Summary Status</span>
+                            <span id="urgencyBadge" class="bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded text-[11px]">Pending Input</span>
+                        </div>
+                        <div id="specialistSuggestion" class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-slate-600">
+                            Fill out symptoms above or type in the chat to get AI recommendations, risk rating, and specialist matches.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Interactive AI Assistant Chat -->
+                <div class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[600px]">
+                    
+                    <!-- Chat Header -->
+                    <div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50 rounded-t-2xl">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-tealmed-100 text-tealmed-700 flex items-center justify-center font-bold">
+                                <i class="fa-solid fa-robot text-sm"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-navy-900">MediAssist AI Interactive Chat</h3>
+                                <p class="text-[11px] text-slate-500">Gemini 3 Flash Powered Preliminary Guidance</p>
+                            </div>
+                        </div>
+                        <button onclick="clearChat()" class="text-xs text-slate-400 hover:text-red-500" title="Clear chat history">
+                            <i class="fa-solid fa-trash-can"></i> Clear
+                        </button>
+                    </div>
+
+                    <!-- Chat Messages Scroll Box -->
+                    <div id="chatMessages" class="flex-1 p-4 overflow-y-auto custom-scroll space-y-4 text-xs">
+                        <!-- Welcome Message -->
+                        <div class="flex items-start gap-3">
+                            <div class="w-7 h-7 rounded-full bg-tealmed-100 text-tealmed-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <i class="fa-solid fa-robot text-xs"></i>
+                            </div>
+                            <div class="bg-slate-100 border border-slate-200 rounded-2xl rounded-tl-none p-3 max-w-[85%] text-slate-800 leading-relaxed">
+                                Welcome! I am your AI Healthcare Assistant. You can use the <strong>Symptom Checklist</strong> on the left or type your health concerns directly here.
+                                <br><br>
+                                I will help categorize risk levels, match potential specialists, and generate questions for your next doctor visit.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Typing Indicator -->
+                    <div id="chatTyping" class="hidden px-4 py-2 text-xs text-slate-400 italic flex items-center gap-2">
+                        <i class="fa-solid fa-circle-notch animate-spin text-tealmed-600"></i> AI is evaluating symptoms...
+                    </div>
+
+                    <!-- Chat Input Form -->
+                    <form id="chatForm" class="p-3 border-t border-slate-200 bg-white flex items-center gap-2 rounded-b-2xl">
+                        <input type="text" id="chatInput" placeholder="Ask a question or describe how you feel..." class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-tealmed-500 outline-none">
+                        <button type="submit" class="bg-tealmed-600 hover:bg-tealmed-700 text-white rounded-xl px-4 py-2.5 text-xs font-semibold shadow flex items-center gap-1">
+                            <span>Send</span> <i class="fa-solid fa-paper-plane text-xs"></i>
+                        </button>
+                    </form>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- TAB 2: MEDICAL REPORT & DOCUMENT ANALYZER -->
+        <section id="view-report" class="tab-view hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div class="flex items-center gap-3 pb-4 border-b border-slate-100">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-file-waveform"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-bold text-navy-900">Multimodal Medical Report & Diagnostic Analyzer</h2>
+                        <p class="text-xs text-slate-500">Upload lab test images or paste diagnostic text (CBC, Lipid Profile, Metabolic Panel, HbA1c) for AI simplification.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                    
+                    <!-- Input Method Column -->
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Option 1: Upload Lab Report Image (OCR Vision)</label>
+                            <input type="file" id="reportImageInput" accept="image/*" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 border border-slate-200 rounded-xl p-1">
+                            <div id="imagePreviewContainer" class="hidden mt-2 border border-slate-200 rounded-lg p-2 max-h-40 overflow-hidden flex items-center justify-center bg-slate-50">
+                                <img id="reportImagePreview" src="" class="max-h-36 object-contain">
+                            </div>
+                        </div>
+
+                        <div class="relative flex items-center justify-center my-2">
+                            <div class="border-t border-slate-200 w-full"></div>
+                            <span class="bg-white px-2 text-[10px] text-slate-400 uppercase font-bold absolute">OR</span>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Option 2: Paste Lab Report / Clinical Text</label>
+                            <textarea id="reportTextInput" rows="6" placeholder="Paste report text here, e.g.:
+HbA1c: 7.2%
+WBC: 12.5 x10^3/uL
+Total Cholesterol: 240 mg/dL
+TSH: 6.5 mIU/L" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+                        </div>
+
+                        <button onclick="analyzeMedicalReport()" id="analyzeReportBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl shadow text-xs flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-microscope"></i> Analyze & Flag Abnormal Values
+                        </button>
+                    </div>
+
+                    <!-- AI Analysis Result Column -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-xs font-bold text-indigo-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <i class="fa-solid fa-magnifying-glass-chart"></i> AI Analysis & Findings
+                            </h3>
+                            <div id="reportAnalysisOutput" class="text-xs text-slate-600 leading-relaxed space-y-2 max-h-[380px] overflow-y-auto custom-scroll pr-1">
+                                <p class="italic text-slate-400">Upload an image or paste report text on the left and click 'Analyze' to view flagged metrics, simplified explanations, and key doctor questions.</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-slate-200 text-[11px] text-slate-400 flex items-center justify-between">
+                            <span><i class="fa-solid fa-shield"></i> Standard reference ranges applied</span>
+                            <span class="text-indigo-600 font-semibold">Gemini Multimodal</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: INTERACTIVE VITALS TRACKER & CHARTS -->
+        <section id="view-vitals" class="tab-view hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Left: Vitals Logging Form & Automated Rule Alerts -->
+                <div class="lg:col-span-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <h2 class="text-base font-bold text-navy-900 flex items-center gap-2">
+                            <i class="fa-solid fa-heart-pulse text-emerald-600"></i> Log Daily Vitals
+                        </h2>
+                        <span class="text-[11px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded">Journal</span>
+                    </div>
+
+                    <form id="vitalsForm" class="space-y-3 text-xs">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Date & Time</label>
+                            <input type="datetime-local" id="vitalDate" required class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">BP Systolic (mmHg)</label>
+                                <input type="number" id="vitalSys" placeholder="120" min="50" max="250" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">BP Diastolic (mmHg)</label>
+                                <input type="number" id="vitalDia" placeholder="80" min="30" max="150" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Heart Rate (BPM)</label>
+                                <input type="number" id="vitalHr" placeholder="72" min="30" max="220" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">SpO2 Oxygen (%)</label>
+                                <input type="number" id="vitalSpo2" placeholder="98" min="50" max="100" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Blood Sugar (mg/dL)</label>
+                                <input type="number" id="vitalGlucose" placeholder="95" min="40" max="500" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Body Temp (°F)</label>
+                                <input type="number" step="0.1" id="vitalTemp" placeholder="98.6" min="90" max="108" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg shadow text-xs flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-plus-circle"></i> Save Vitals Entry
+                        </button>
+                    </form>
+
+                    <!-- Rule Check Alerts Container -->
+                    <div id="vitalsRuleAlerts" class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
+                        <span class="font-bold text-slate-700 block mb-1">Rule Engine Status:</span>
+                        <p class="text-slate-500">Log vitals to view automated clinical threshold alerts (e.g., Hypertension, Hypoxia).</p>
+                    </div>
+                </div>
+
+                <!-- Right: Chart.js Trends & Table -->
+                <div class="lg:col-span-8 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                            <h2 class="text-base font-bold text-navy-900 flex items-center gap-2">
+                                <i class="fa-solid fa-chart-line text-emerald-600"></i> Health Vitals Trends
+                            </h2>
+                            <button onclick="seedSampleVitals()" class="text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold px-2.5 py-1 rounded">
+                                <i class="fa-solid fa-flask"></i> Add Demo Data
+                            </button>
+                        </div>
+
+                        <!-- Chart Canvas Container -->
+                        <div class="relative h-64 w-full">
+                            <canvas id="vitalsChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Vitals History Table -->
+                    <div class="mt-6">
+                        <h3 class="text-xs font-bold text-slate-700 mb-2">Recent Vitals History</h3>
+                        <div class="overflow-x-auto max-h-40 custom-scroll border border-slate-200 rounded-xl">
+                            <table class="w-full text-left text-xs text-slate-600">
+                                <thead class="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
+                                    <tr>
+                                        <th class="p-2">Date/Time</th>
+                                        <th class="p-2">BP (mmHg)</th>
+                                        <th class="p-2">HR (BPM)</th>
+                                        <th class="p-2">SpO2</th>
+                                        <th class="p-2">Glucose</th>
+                                        <th class="p-2">Temp</th>
+                                        <th class="p-2 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vitalsTableBody" class="divide-y divide-slate-100">
+                                    <tr>
+                                        <td colspan="7" class="p-3 text-center text-slate-400">No vitals logged yet.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- TAB 4: DRUG SAFETY & INTERACTION CHECKER -->
+        <section id="view-drugs" class="tab-view hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div class="flex items-center gap-3 pb-4 border-b border-slate-100">
+                    <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-capsules"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-bold text-navy-900">Medication Safety & Interaction Checker</h2>
+                        <p class="text-xs text-slate-500">Build your active medication list to analyze potential drug-drug interactions, side effects, and precautions.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6">
+                    
+                    <!-- Left: Medication Builder -->
+                    <div class="lg:col-span-5 space-y-4">
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="drugInput" placeholder="Enter medication name (e.g. Metformin, Lisinopril, Aspirin)..." class="flex-1 bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-purple-500 outline-none">
+                            <button onclick="addMedication()" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-2.5 rounded-xl text-xs shadow flex-shrink-0">
+                                <i class="fa-solid fa-plus"></i> Add
+                            </button>
+                        </div>
+
+                        <!-- Active Medication List -->
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-bold text-slate-700">Active Medication Cabinet</span>
+                                <span id="medCount" class="text-[10px] bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded-full">0 meds</span>
+                            </div>
+                            <div id="medicationList" class="space-y-2 min-h-[120px]">
+                                <p class="text-xs text-slate-400 italic">No medications added yet.</p>
+                            </div>
+                        </div>
+
+                        <button onclick="checkDrugInteractions()" id="checkDrugsBtn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 rounded-xl shadow text-xs flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-shield-virus"></i> Run AI Interaction Safety Check
+                        </button>
+                    </div>
+
+                    <!-- Right: Interaction Analysis Output -->
+                    <div class="lg:col-span-7 bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-xs font-bold text-purple-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <i class="fa-solid fa-triangle-exclamation"></i> Interaction & Safety Findings
+                            </h3>
+                            <div id="drugAnalysisOutput" class="text-xs text-slate-600 leading-relaxed space-y-2 max-h-[350px] overflow-y-auto custom-scroll pr-1">
+                                <p class="italic text-slate-400">Add two or more medications and click 'Run AI Interaction Safety Check' to view compatibility warnings, side effects, and precautions.</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-slate-200 text-[11px] text-slate-400">
+                            <i class="fa-solid fa-info-circle"></i> Always inform your doctor or pharmacist before changing or stopping prescribed medications.
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: DOCTOR VISIT SUMMARY EXPORTER -->
+        <section id="view-summary" class="tab-view hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg">
+                            <i class="fa-solid fa-file-invoice"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-base font-bold text-navy-900">Doctor Consultation Brief Exporter</h2>
+                            <p class="text-xs text-slate-500">Automatically packages your symptom logs, vitals trend, medication list, and doctor questions into a clean printable report.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="generateDoctorBrief()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-lg shadow flex items-center gap-1.5">
+                            <i class="fa-solid fa-arrows-rotate"></i> Refresh Brief
+                        </button>
+                        <button onclick="printDoctorBrief()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg shadow flex items-center gap-1.5">
+                            <i class="fa-solid fa-print"></i> Print / PDF
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Printable Document Box -->
+                <div id="printableSummary" class="mt-6 border border-slate-200 rounded-xl p-6 bg-slate-50/50 space-y-6 text-xs text-slate-800">
+                    <!-- Report Header -->
+                    <div class="flex justify-between items-start border-b border-slate-300 pb-4">
+                        <div>
+                            <h1 class="text-lg font-bold text-navy-900">PATIENT PRELIMINARY HEALTH BRIEF</h1>
+                            <p class="text-[11px] text-slate-500">Generated via MediAssist AI (Problem Statement HC-02)</p>
+                        </div>
+                        <div class="text-right text-[11px] text-slate-500">
+                            <p><strong>Date:</strong> <span id="briefDate">--</span></p>
+                            <p><strong>Status:</strong> Preliminary Consultation Summary</p>
+                        </div>
+                    </div>
+
+                    <!-- Section 1: Symptom Profile -->
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-sm uppercase tracking-wide border-b border-slate-200 pb-1 mb-2">1. Symptom Profile & Triage Summary</h3>
+                        <div id="briefSymptomSection" class="bg-white p-3 border border-slate-200 rounded-lg space-y-1">
+                            <p class="text-slate-500 italic">No symptom analysis recorded yet in current session.</p>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Vitals Overview -->
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-sm uppercase tracking-wide border-b border-slate-200 pb-1 mb-2">2. Vitals & Biometric Trend</h3>
+                        <div id="briefVitalsSection" class="bg-white p-3 border border-slate-200 rounded-lg">
+                            <p class="text-slate-500 italic">No vitals logged yet.</p>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Active Medications -->
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-sm uppercase tracking-wide border-b border-slate-200 pb-1 mb-2">3. Active Medication Cabinet</h3>
+                        <div id="briefMedsSection" class="bg-white p-3 border border-slate-200 rounded-lg">
+                            <p class="text-slate-500 italic">No active medications registered.</p>
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Suggested Doctor Questions -->
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-sm uppercase tracking-wide border-b border-slate-200 pb-1 mb-2">4. Key Questions for Your Physician</h3>
+                        <div class="bg-white p-3 border border-slate-200 rounded-lg space-y-1">
+                            <ul class="list-disc pl-4 space-y-1 text-slate-700" id="briefQuestionsList">
+                                <li>What diagnostic tests are recommended based on these symptoms?</li>
+                                <li>Could my active medications or vitals trends be contributing to how I feel?</li>
+                                <li>What red flag signs should I watch out for at home?</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Footer Disclaimer for Print -->
+                    <div class="pt-4 border-t border-slate-300 text-[10px] text-slate-500 text-center">
+                        CONFIDENTIAL PATIENT PRE-CONSULTATION SUMMARY. THIS DOCUMENT IS GENERATED BY AN AI ASSISTANT AND DOES NOT CONSTITUTE A FORMAL MEDICAL DIAGNOSIS.
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Application JavaScript Engine -->
+    <script>
+        // Global Application State
+        const state = {
+            vitals: JSON.parse(localStorage.getItem('medi_vitals') || '[]'),
+            medications: JSON.parse(localStorage.getItem('medi_meds') || '[]'),
+            chatHistory: [],
+            latestTriage: null,
+            recognition: null,
+            isRecording: false,
+            vitalsChart: null
+        };
+
+        // System Prompt for Triage & Assistant
+        const TRIAGE_SYSTEM_PROMPT = `
+You are an expert AI Preliminary Medical Triage Assistant operating under HC-02 standard protocols.
+Your job is to analyze symptoms provided by the user and respond in structured Markdown with:
+
+### 🚦 Urgency Assessment
+Assign exactly one level: [LOW RISK], [MODERATE RISK], [HIGH RISK], or [IMMEDIATE EMERGENCY]. Briefly justify in 1 sentence.
+
+### 📋 Primary Diagnostic Considerations
+List 2-3 potential underlying health conditions or causes (disclaim that these are options, not formal diagnoses).
+
+### 👨‍⚕️ Specialist Match
+Specify the most appropriate medical specialist to consult (e.g., Cardiologist, Pulmonologist, Neurologist, General Practitioner).
+
+### 💡 Recommended Next Steps
+Actionable guidance (e.g., monitor temperature every 4 hrs, hydrate, or go to urgent care).
+
+### ❓ Suggested Questions for Doctor
+2 bullet points the user can ask their physician.
+
+Keep explanations clear, empathetic, and strictly structured with headers.
+`;
+
+        // Initialize App on DOM Load
+        window.addEventListener('DOMContentLoaded', () => {
+            initChart();
+            renderVitalsTable();
+            renderMedicationList();
+            setupSpeechRecognition();
+            generateDoctorBrief();
+
+            // Set default date picker to now
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('vitalDate').value = now.toISOString().slice(0,16);
+        });
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-view').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-tab').forEach(el => {
+                el.classList.remove('border-tealmed-600', 'text-tealmed-700', 'font-semibold');
+                el.classList.add('border-transparent', 'text-slate-500');
+            });
+
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            const activeTab = document.getElementById(`tab-${tabId}`);
+            activeTab.classList.remove('border-transparent', 'text-slate-500');
+            activeTab.classList.add('border-tealmed-600', 'text-tealmed-700', 'font-semibold');
+
+            if (tabId === 'vitals' && state.vitalsChart) {
+                setTimeout(() => state.vitalsChart.resize(), 100);
+            }
+            if (tabId === 'summary') {
+                generateDoctorBrief();
+            }
+        }
+
+        async function callGemini(payload, maxRetries = 3) {
+            const apiKey = ""; // Environment handles blank key
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            let delay = 1000;
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                try {
+                    const res = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        return data?.candidates?.[0]?.content?.parts?.[0]?.text || "No response text received.";
+                    }
+                } catch (e) {
+                    // Retry silently
+                }
+                await new Promise(r => setTimeout(r, delay));
+                delay *= 2;
+            }
+            throw new Error("Unable to reach Gemini API service. Please try again.");
+        }
+
+        function renderMarkdown(text) {
+            if (!text) return '';
+            let html = text
+                .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/^\* (.*$)/gim, '<ul><li>$1</li></ul>')
+                .replace(/<\/ul>\n<ul>/g, '')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br/>');
+            return `<div class="markdown-styled"><p>${html}</p></div>`;
+        }
+
+        function setupSpeechRecognition() {
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRec) {
+                state.recognition = new SpeechRec();
+                state.recognition.continuous = false;
+                state.recognition.interimResults = false;
+                state.recognition.lang = 'en-US';
+
+                state.recognition.onstart = () => {
+                    state.isRecording = true;
+                    document.getElementById('voiceDictationBtn').classList.add('text-red-500', 'recording-active');
+                    document.getElementById('dictationStatus').classList.remove('hidden');
+                };
+
+                state.recognition.onresult = (e) => {
+                    const transcript = e.results[0][0].transcript;
+                    const input = document.getElementById('formSymptom');
+                    input.value = input.value ? `${input.value} ${transcript}` : transcript;
+                };
+
+                state.recognition.onend = () => {
+                    state.isRecording = false;
+                    document.getElementById('voiceDictationBtn').classList.remove('text-red-500', 'recording-active');
+                    document.getElementById('dictationStatus').classList.add('hidden');
+                };
+            }
+        }
+
+        function toggleSpeechRecognition() {
+            if (!state.recognition) {
+                alertModal("Voice dictation is not supported by your current browser. Please use Chrome or Edge.");
+                return;
+            }
+            if (state.isRecording) {
+                state.recognition.stop();
+            } else {
+                state.recognition.start();
+            }
+        }
+
+        document.getElementById('symptomForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const symptom = document.getElementById('formSymptom').value;
+            const severity = document.getElementById('formSeverity').value;
+            const duration = document.getElementById('formDuration').value;
+            const onset = document.getElementById('formOnset').value;
+            const location = document.getElementById('formLocation').value;
+            const context = document.getElementById('formAdditional').value;
+
+            const promptText = `Patient Checklist Symptoms:
+- Chief Complaint: ${symptom}
+- Pain/Severity Scale: ${severity}/10
+- Duration: ${duration || 'Unspecified'}
+- Onset: ${onset}
+- Location: ${location || 'Unspecified'}
+- Additional Context: ${context || 'None'}`;
+
+            appendChatMessage(promptText, 'user');
+            await processTriageAnalysis(promptText);
+        });
+
+        document.getElementById('chatForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('chatInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            input.value = '';
+            appendChatMessage(msg, 'user');
+            await processTriageAnalysis(msg);
+        });
+
+        async function processTriageAnalysis(userInputText) {
+            showTyping(true);
+            state.chatHistory.push({ role: "user", parts: [{ text: userInputText }] });
+
+            const payload = {
+                contents: state.chatHistory,
+                systemInstruction: { parts: [{ text: TRIAGE_SYSTEM_PROMPT }] }
+            };
+
+            try {
+                const aiResponse = await callGemini(payload);
+                appendChatMessage(aiResponse, 'ai');
+                state.chatHistory.push({ role: "model", parts: [{ text: aiResponse }] });
+                
+                // Parse Emergency Level
+                updateTriageWidgets(aiResponse);
+                state.latestTriage = { text: aiResponse, date: new Date().toLocaleTimeString() };
+                generateDoctorBrief();
+            } catch (err) {
+                appendChatMessage("I apologize, but I encountered an error connecting to the medical AI engine. Please retry.", 'ai');
+            } finally {
+                showTyping(false);
+            }
+        }
+
+        function appendChatMessage(text, sender) {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = sender === 'user' ? "flex items-start gap-3 justify-end" : "flex items-start gap-3";
+
+            if (sender === 'user') {
+                div.innerHTML = `
+                    <div class="bg-tealmed-600 text-white rounded-2xl rounded-tr-none p-3 max-w-[85%] shadow-sm">
+                        ${text.replace(/\n/g, '<br>')}
+                    </div>
+                    <div class="w-7 h-7 rounded-full bg-tealmed-700 text-white flex items-center justify-center flex-shrink-0 text-xs">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                `;
+            } else {
+                div.innerHTML = `
+                    <div class="w-7 h-7 rounded-full bg-tealmed-100 text-tealmed-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <i class="fa-solid fa-robot text-xs"></i>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl rounded-tl-none p-3 max-w-[85%] text-slate-800 shadow-sm">
+                        ${renderMarkdown(text)}
+                    </div>
+                `;
+            }
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function showTyping(isShown) {
+            const indicator = document.getElementById('chatTyping');
+            if (isShown) indicator.classList.remove('hidden');
+            else indicator.classList.add('hidden');
+        }
+
+        function updateTriageWidgets(aiResponse) {
+            const urgencyBadge = document.getElementById('urgencyBadge');
+            const emergencyBanner = document.getElementById('emergencyAlertBanner');
+            const specialistBox = document.getElementById('specialistSuggestion');
+
+            if (aiResponse.includes('IMMEDIATE EMERGENCY') || aiResponse.includes('HIGH RISK')) {
+                urgencyBadge.className = "bg-red-600 text-white font-bold px-2 py-0.5 rounded text-[11px]";
+                urgencyBadge.innerText = "HIGH RISK / EMERGENCY";
+                emergencyBanner.classList.remove('hidden');
+            } else if (aiResponse.includes('MODERATE RISK')) {
+                urgencyBadge.className = "bg-amber-500 text-white font-bold px-2 py-0.5 rounded text-[11px]";
+                urgencyBadge.innerText = "MODERATE RISK";
+                emergencyBanner.classList.add('hidden');
+            } else {
+                urgencyBadge.className = "bg-emerald-600 text-white font-bold px-2 py-0.5 rounded text-[11px]";
+                urgencyBadge.innerText = "LOW RISK";
+                emergencyBanner.classList.add('hidden');
+            }
+
+            specialistBox.innerHTML = renderMarkdown(aiResponse);
+        }
+
+        function clearChat() {
+            state.chatHistory = [];
+            document.getElementById('chatMessages').innerHTML = `
+                <div class="flex items-start gap-3">
+                    <div class="w-7 h-7 rounded-full bg-tealmed-100 text-tealmed-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <i class="fa-solid fa-robot text-xs"></i>
+                    </div>
+                    <div class="bg-slate-100 border border-slate-200 rounded-2xl rounded-tl-none p-3 max-w-[85%] text-slate-800 leading-relaxed">
+                        Chat cleared. Describe your symptoms to begin new triage.
+                    </div>
+                </div>
+            `;
+            document.getElementById('emergencyAlertBanner').classList.add('hidden');
+        }
+
+        document.getElementById('reportImageInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    document.getElementById('reportImagePreview').src = evt.target.result;
+                    document.getElementById('imagePreviewContainer').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        async function analyzeMedicalReport() {
+            const textContent = document.getElementById('reportTextInput').value.trim();
+            const imageInput = document.getElementById('reportImageInput');
+            const outputBox = document.getElementById('reportAnalysisOutput');
+
+            if (!textContent && (!imageInput.files || imageInput.files.length === 0)) {
+                outputBox.innerHTML = `<span class="text-red-500">Please paste clinical text or select an image report file first.</span>`;
+                return;
+            }
+
+            outputBox.innerHTML = `<div class="flex items-center gap-2 text-indigo-600"><i class="fa-solid fa-spinner animate-spin"></i> Analyzing diagnostic metrics using Gemini Multimodal AI...</div>`;
+
+            const promptText = `Act as an expert clinical laboratory analyzer. Parse the attached lab report/diagnostic notes and generate structured output:
+1. **Flagged Abnormal Metrics**: Highlight any values outside normal range (e.g., HbA1c > 5.7%, WBC > 11.0, Cholesterol > 200) with High/Low indicators.
+2. **Simplified Medical Jargon Explanation**: Explain what these findings mean in simple layperson terms.
+3. **Follow-Up Questions for Doctor**: 2-3 precise questions the user should ask their physician.`;
+
+            let parts = [{ text: promptText }];
+
+            if (textContent) {
+                parts.push({ text: `Lab Report Text Data:\n${textContent}` });
+            }
+
+            if (imageInput.files && imageInput.files[0]) {
+                const file = imageInput.files[0];
+                const base64Data = await fileToBase64(file);
+                parts.push({
+                    inlineData: {
+                        mimeType: file.type || "image/jpeg",
+                        data: base64Data
+                    }
+                });
+            }
+
+            try {
+                const aiResult = await callGemini({ contents: [{ parts }] });
+                outputBox.innerHTML = renderMarkdown(aiResult);
+            } catch (err) {
+                outputBox.innerHTML = `<span class="text-red-500">Error analyzing report: ${err.message}</span>`;
+            }
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('vitalsChart').getContext('2d');
+            state.vitalsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Systolic BP', data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', tension: 0.3 },
+                        { label: 'Diastolic BP', data: [], borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.1)', tension: 0.3 },
+                        { label: 'Heart Rate (BPM)', data: [], borderColor: '#10b981', backgroundColor: 'transparent', tension: 0.3 },
+                        { label: 'Blood Sugar', data: [], borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.3 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: false, grid: { color: '#f1f5f9' } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { size: 10 } } }
+                    }
+                }
+            });
+            updateChartData();
+        }
+
+        document.getElementById('vitalsForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const entry = {
+                id: Date.now(),
+                date: document.getElementById('vitalDate').value,
+                sys: parseInt(document.getElementById('vitalSys').value) || null,
+                dia: parseInt(document.getElementById('vitalDia').value) || null,
+                hr: parseInt(document.getElementById('vitalHr').value) || null,
+                spo2: parseInt(document.getElementById('vitalSpo2').value) || null,
+                glucose: parseInt(document.getElementById('vitalGlucose').value) || null,
+                temp: parseFloat(document.getElementById('vitalTemp').value) || null
+            };
+
+            state.vitals.push(entry);
+            localStorage.setItem('medi_vitals', JSON.stringify(state.vitals));
+            renderVitalsTable();
+            updateChartData();
+            runVitalsRules(entry);
+            generateDoctorBrief();
+
+            // Clear inputs
+            e.target.reset();
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('vitalDate').value = now.toISOString().slice(0,16);
+        });
+
+        function renderVitalsTable() {
+            const tbody = document.getElementById('vitalsTableBody');
+            if (state.vitals.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-3 text-center text-slate-400">No vitals logged yet.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = state.vitals.slice().reverse().map(v => `
+                <tr class="hover:bg-slate-50 border-b border-slate-100">
+                    <td class="p-2">${v.date.replace('T', ' ')}</td>
+                    <td class="p-2 font-medium">${v.sys && v.dia ? `${v.sys}/${v.dia}` : '-'}</td>
+                    <td class="p-2">${v.hr || '-'}</td>
+                    <td class="p-2">${v.spo2 ? `${v.spo2}%` : '-'}</td>
+                    <td class="p-2">${v.glucose || '-'}</td>
+                    <td class="p-2">${v.temp ? `${v.temp}°F` : '-'}</td>
+                    <td class="p-2 text-right">
+                        <button onclick="deleteVital(${v.id})" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function deleteVital(id) {
+            state.vitals = state.vitals.filter(v => v.id !== id);
+            localStorage.setItem('medi_vitals', JSON.stringify(state.vitals));
+            renderVitalsTable();
+            updateChartData();
+            generateDoctorBrief();
+        }
+
+        function updateChartData() {
+            if (!state.vitalsChart) return;
+            const sorted = state.vitals.slice().sort((a,b) => new Date(a.date) - new Date(b.date));
+            
+            state.vitalsChart.data.labels = sorted.map(v => v.date.split('T')[0]);
+            state.vitalsChart.data.datasets[0].data = sorted.map(v => v.sys);
+            state.vitalsChart.data.datasets[1].data = sorted.map(v => v.dia);
+            state.vitalsChart.data.datasets[2].data = sorted.map(v => v.hr);
+            state.vitalsChart.data.datasets[3].data = sorted.map(v => v.glucose);
+            state.vitalsChart.update();
+        }
+
+        function runVitalsRules(entry) {
+            const alertsBox = document.getElementById('vitalsRuleAlerts');
+            let flags = [];
+
+            if (entry.sys >= 140 || entry.dia >= 90) {
+                flags.push(`<span class="text-red-600 font-bold">⚠️ Stage 2 Hypertension Alert (BP ${entry.sys}/${entry.dia})</span>`);
+            } else if (entry.sys >= 130 || entry.dia >= 80) {
+                flags.push(`<span class="text-amber-600 font-bold">⚠️ Stage 1 Hypertension (BP ${entry.sys}/${entry.dia})</span>`);
+            }
+
+            if (entry.spo2 && entry.spo2 < 95) {
+                flags.push(`<span class="text-red-600 font-bold">🚨 Low Oxygen Saturation (SpO2 ${entry.spo2}%) - Seek care if experiencing shortness of breath.</span>`);
+            }
+
+            if (entry.glucose && entry.glucose > 180) {
+                flags.push(`<span class="text-amber-600 font-bold">⚠️ High Glucose Alert (${entry.glucose} mg/dL)</span>`);
+            }
+
+            if (entry.temp && entry.temp >= 100.4) {
+                flags.push(`<span class="text-amber-600 font-bold">🌡️ Fever Flagged (${entry.temp}°F)</span>`);
+            }
+
+            if (flags.length === 0) {
+                alertsBox.innerHTML = `<span class="text-emerald-600 font-bold"><i class="fa-solid fa-circle-check"></i> All entered vitals are within normal reference ranges.</span>`;
+            } else {
+                alertsBox.innerHTML = `<span class="font-bold text-slate-700 block mb-1">Automated Rule Engine Flags:</span>` + flags.map(f => `<p>${f}</p>`).join('');
+            }
+        }
+
+        function seedSampleVitals() {
+            state.vitals = [
+                { id: 1, date: '2026-09-14T09:00', sys: 122, dia: 80, hr: 72, spo2: 98, glucose: 92, temp: 98.4 },
+                { id: 2, date: '2026-09-15T09:00', sys: 128, dia: 82, hr: 76, spo2: 97, glucose: 105, temp: 98.6 },
+                { id: 3, date: '2026-09-16T09:00', sys: 135, dia: 88, hr: 81, spo2: 96, glucose: 140, temp: 99.1 },
+                { id: 4, date: '2026-09-17T09:00', sys: 138, dia: 91, hr: 84, spo2: 95, glucose: 165, temp: 99.4 }
+            ];
+            localStorage.setItem('medi_vitals', JSON.stringify(state.vitals));
+            renderVitalsTable();
+            updateChartData();
+            runVitalsRules(state.vitals[state.vitals.length - 1]);
+            generateDoctorBrief();
+        }
+
+        function addMedication() {
+            const input = document.getElementById('drugInput');
+            const name = input.value.trim();
+            if (!name) return;
+
+            if (!state.medications.includes(name)) {
+                state.medications.push(name);
+                localStorage.setItem('medi_meds', JSON.stringify(state.medications));
+                renderMedicationList();
+                generateDoctorBrief();
+            }
+            input.value = '';
+        }
+
+        function removeMedication(name) {
+            state.medications = state.medications.filter(m => m !== name);
+            localStorage.setItem('medi_meds', JSON.stringify(state.medications));
+            renderMedicationList();
+            generateDoctorBrief();
+        }
+
+        function renderMedicationList() {
+            const container = document.getElementById('medicationList');
+            document.getElementById('medCount').innerText = `${state.medications.length} meds`;
+
+            if (state.medications.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 italic">No medications added yet.</p>`;
+                return;
+            }
+
+            container.innerHTML = state.medications.map(m => `
+                <div class="flex items-center justify-between bg-white px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700">
+                    <span class="flex items-center gap-2"><i class="fa-solid fa-pills text-purple-500"></i> ${m}</span>
+                    <button onclick="removeMedication('${m}')" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            `).join('');
+        }
+
+        async function checkDrugInteractions() {
+            const outputBox = document.getElementById('drugAnalysisOutput');
+            if (state.medications.length < 1) {
+                outputBox.innerHTML = `<span class="text-red-500">Please add at least 1 medication to analyze side effects and interactions.</span>`;
+                return;
+            }
+
+            outputBox.innerHTML = `<div class="flex items-center gap-2 text-purple-600"><i class="fa-solid fa-spinner animate-spin"></i> Checking pharmacological database & interactions via Gemini...</div>`;
+
+            const promptText = `Act as a clinical pharmacist. Analyze the following medication list:
+${state.medications.map(m => `- ${m}`).join('\n')}
+
+Output structured Markdown with:
+1. **Potential Drug-Drug Interactions**: Highlight major or moderate interactions between these drugs.
+2. **Common Side Effects**: Key side effects to monitor for.
+3. **Food & Dosage Precautions**: Important administration instructions (e.g., take with food, avoid grapefruit).`;
+
+            try {
+                const result = await callGemini({ contents: [{ parts: [{ text: promptText }] }] });
+                outputBox.innerHTML = renderMarkdown(result);
+            } catch (e) {
+                outputBox.innerHTML = `<span class="text-red-500">Error analyzing medications: ${e.message}</span>`;
+            }
+        }
+
+        function generateDoctorBrief() {
+            document.getElementById('briefDate').innerText = new Date().toLocaleDateString();
+
+            // Section 1: Symptom Triage
+            const symSec = document.getElementById('briefSymptomSection');
+            if (state.latestTriage) {
+                symSec.innerHTML = renderMarkdown(state.latestTriage.text);
+            } else {
+                symSec.innerHTML = `<p class="text-slate-500 italic">No symptom triage run yet in this session. Use the Symptom Triage tab to record chief complaints.</p>`;
+            }
+
+            // Section 2: Vitals
+            const vitSec = document.getElementById('briefVitalsSection');
+            if (state.vitals.length > 0) {
+                const latest = state.vitals[state.vitals.length - 1];
+                vitSec.innerHTML = `
+                    <p class="font-bold text-slate-800 mb-1">Most Recent Logged Entry (${latest.date.replace('T', ' ')}):</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                        <div class="bg-slate-50 p-2 rounded">BP: <strong>${latest.sys && latest.dia ? `${latest.sys}/${latest.dia}` : 'N/A'}</strong> mmHg</div>
+                        <div class="bg-slate-50 p-2 rounded">Heart Rate: <strong>${latest.hr || 'N/A'}</strong> BPM</div>
+                        <div class="bg-slate-50 p-2 rounded">SpO2: <strong>${latest.spo2 ? `${latest.spo2}%` : 'N/A'}</strong></div>
+                        <div class="bg-slate-50 p-2 rounded">Blood Sugar: <strong>${latest.glucose || 'N/A'}</strong> mg/dL</div>
+                    </div>
+                `;
+            } else {
+                vitSec.innerHTML = `<p class="text-slate-500 italic">No vitals entries logged.</p>`;
+            }
+
+            // Section 3: Medications
+            const medSec = document.getElementById('briefMedsSection');
+            if (state.medications.length > 0) {
+                medSec.innerHTML = `<ul class="list-disc pl-4 space-y-0.5 font-medium text-slate-800">` +
+                    state.medications.map(m => `<li>${m}</li>`).join('') + `</ul>`;
+            } else {
+                medSec.innerHTML = `<p class="text-slate-500 italic">No active medications registered in cabinet.</p>`;
+            }
+        }
+
+        function printDoctorBrief() {
+            window.print();
+        }
+
+        function clearAllData() {
+            if (confirm("Reset all saved vitals, medications, and triage state?")) {
+                localStorage.removeItem('medi_vitals');
+                localStorage.removeItem('medi_meds');
+                state.vitals = [];
+                state.medications = [];
+                state.latestTriage = null;
+                clearChat();
+                renderVitalsTable();
+                updateChartData();
+                renderMedicationList();
+                generateDoctorBrief();
+            }
+        }
+
+        function alertModal(msg) {
+            alert(msg);
+        }
+    </script>
+</body>
+</html>
